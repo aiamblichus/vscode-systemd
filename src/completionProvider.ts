@@ -3,6 +3,7 @@ import { completionMetadata, SettingInfo, SectionInfo } from "./data";
 import * as fuzz from 'fuzzaldrin-plus';
 import { List, Map } from 'immutable';
 import { ProviderBase } from "./providerBase";
+import { Option } from 'option.ts';
 
 export class SystemdCompletionItemProvider extends ProviderBase implements CompletionItemProvider {
 
@@ -16,8 +17,8 @@ export class SystemdCompletionItemProvider extends ProviderBase implements Compl
 
         if (lineStart.trim() == "[") {
             let filtered = (prefix == "") ?
-                this.allSections :
-                fuzz.filter(this.allSections, prefix, { "key": "name" });
+                ProviderBase.allSections :
+                fuzz.filter(ProviderBase.allSections, prefix, { "key": "name" });
             return filtered.map(section => {
                 let item = new CompletionItem(section.name, CompletionItemKind.Module);
                 item.documentation = section.doc;
@@ -26,30 +27,28 @@ export class SystemdCompletionItemProvider extends ProviderBase implements Compl
             });
         }
         else if (lineStart.trim() == "") {
-            let containingSection = this.findContainingSection(document, position);
-            let filtered = (prefix == "") ?
-                containingSection.valueSeq().toArray() :
-                fuzz.filter(containingSection.valueSeq().toArray(), prefix, { "key": "name" });
-            return filtered.map(setting => {
-                let item = new CompletionItem(setting.name, CompletionItemKind.Property);
-                item.documentation = setting.doc;
-                item.detail = "Setting";
-                item.insertText = setting.name + "=";
-                return item;
-            });
+            return this.findContainingSection(document, position).map(containingSection => {
+                let filtered = (prefix == "") ?
+                    containingSection.valueSeq().toArray() :
+                    fuzz.filter(containingSection.valueSeq().toArray(), prefix, { "key": "name" });
+                return filtered.map(setting => {
+                    let item = new CompletionItem(setting.name, CompletionItemKind.Property);
+                    item.documentation = setting.doc;
+                    item.detail = "Setting";
+                    item.insertText = setting.name + "=";
+                    return item;
+                });
+            }).getOrElse([]);
         }
         else {
             let settingMatch = lineStart.match(/\s*(\w+)\s*(?:=|=-)\s*/)
-            if (settingMatch) {
-                let settingsMap = this.findContainingSection(document, position);
-                if (settingsMap) {
-                    let setting = settingsMap.get(settingMatch[1]);
-                    if (setting) {
+            return Option(settingMatch).flatMap(([_, settingName]) => {
+                return this.findContainingSection(document, position).flatMap(settingsMap => {
+                    return Option(settingsMap.get(settingName)).map(setting => {
                         return setting.choices.map(c => new CompletionItem(c, CompletionItemKind.Keyword));
-                    }
-                }
-            }
-            return [];
+                    });
+                });
+            }).getOrElse([]);
         }
     }
 }

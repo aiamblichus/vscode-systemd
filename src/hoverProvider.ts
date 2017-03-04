@@ -3,6 +3,7 @@ import { completionMetadata, SettingInfo, SectionInfo } from "./data";
 import * as fuzz from 'fuzzaldrin-plus';
 import { List, Map } from 'immutable';
 import { ProviderBase } from "./providerBase";
+import { Option } from 'option.ts';
 
 export class SystemdHoverProvider extends ProviderBase implements HoverProvider {
     provideHover(document: TextDocument, position: Position, token: CancellationToken): Hover {
@@ -11,15 +12,11 @@ export class SystemdHoverProvider extends ProviderBase implements HoverProvider 
         let lineStart = document.getText(new Range(new Position(position.line, 0), range.start));
         if (lineStart.trim() == "") {
             let settingMatch = document.lineAt(position.line).text.match(/^\s*(\w+)\s*(?:=|=-)\s*/);
-            if (settingMatch) {
-                let settingsMap = this.findContainingSection(document, position);
-                if (settingsMap) {
-                    let setting = settingsMap.get(settingMatch[1]);
-                    if (setting) {
-                        return new Hover(setting.doc);
-                    }
-                }
-            }
+            return Option(settingMatch).flatMap(([_, settingName]) =>
+                this.findContainingSection(document, position).flatMap(settingsMap =>
+                    Option(settingsMap.get(settingName)).map(setting => new Hover(setting.doc))
+                )
+            ).getOrElse(null);
         }
     }
 }

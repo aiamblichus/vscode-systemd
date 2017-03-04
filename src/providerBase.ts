@@ -1,23 +1,27 @@
-import { CompletionItemProvider, TextDocument, Position, CancellationToken, CompletionItem, CompletionList, CompletionItemKind, Range } from 'vscode';
+import { CompletionItemProvider, TextDocument, Position, CancellationToken, CompletionItem, CompletionList, CompletionItemKind } from 'vscode';
 import { completionMetadata, SettingInfo, SectionInfo } from "./data";
-import { List, Map } from 'immutable';
+import { List, Map, Range } from 'immutable';
+import { Option, None } from 'option.ts';
 
 export class ProviderBase {
-    protected allSections = completionMetadata.toArray();
 
-    protected sectionsMap = Map<string, Map<string, SettingInfo>>(completionMetadata.map(s => {
+    protected static allSections = completionMetadata.toArray();
+
+    protected static sectionsMap = Map<string, Map<string, SettingInfo>>(completionMetadata.map(s => {
         let settings = Map<string, SettingInfo>(s.settings.map(st => [st.name, st]));
         return [s.name, settings];
     }));
 
-    protected findContainingSection(document: TextDocument, position: Position): Map<string, SettingInfo> {
-        let line = position.line;
-        while (--line >= 0) {
-            let sectionMatch = document.lineAt(line).text.match(/^\s*\[(\w+)\]\s*$/);
-            if (sectionMatch) {
-                return this.sectionsMap.get(sectionMatch[1]);
-            }
-        }
+    protected findContainingSection(document: TextDocument, position: Position): Option<Map<string, SettingInfo>> {
+        return Range(position.line - 1, 0).toSeq()
+            .take(100)
+            .map(line => {
+                let sectionMatch = document.lineAt(line).text.match(/^\s*\[(\w+)\]\s*$/)
+                return Option(sectionMatch).map(([_, sectionName]) => {
+                    return ProviderBase.sectionsMap.get(sectionName);
+                });
+            })
+            .find(result => result.isDefined(), null, None);
     }
 
 }
