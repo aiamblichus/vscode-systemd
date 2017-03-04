@@ -9,5 +9,26 @@
             "After=$4"
         ],
         "description": "[Unit] section"
+    },
+    "Service": {
+        "prefix": "service",
+        "body": [
+            "[Service]",
+            "Type=${1:simple}",
+            "Environment=$4",
+            "ExecStart=$2",
+            "Restart=${3:on-failure}",
+            "User=$5",
+            "Group=$6"
+        ],
+        "description": "[Service] section"
+    },
+    "Install": {
+        "prefix": "install",
+        "body": [
+            "[Install]",
+            "WantedBy=$1"
+        ],
+        "description": "[Install] section"
     }
 }
