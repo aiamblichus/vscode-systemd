@@ -1,0 +1,13 @@
+{
+    "Unit": {
+        "prefix": "unit",
+        "body": [
+            "[Unit]",
+            "Description=$1",
+            "Documentation=$2",
+            "Requires=$3",
+            "After=$4"
+        ],
+        "description": "[Unit] section"
+    }
+}
